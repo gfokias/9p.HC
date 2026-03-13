@@ -5,20 +5,20 @@
 #define LSR_DATA 1 >> 0
 #define SERIAL0 0x3F8
 
-#define TYPE_VERSION 100
-#define TYPE_AUTH 102
-#define TYPE_ATTACH 104
-#define TYPE_ERROR 106 /* Illegal */
-#define TYPE_FLUSH 108
-#define TYPE_WALK 110
-#define TYPE_OPEN 112
-#define TYPE_CREATE 114
-#define TYPE_READ 116
-#define TYPE_WRITE 118
-#define TYPE_CLUNK 120
-#define TYPE_REMOVE 122
-#define TYPE_STAT 124
-#define TYPE_WSTAT 126
+#define TYPE_TVERSION 100
+#define TYPE_TAUTH 102
+#define TYPE_TATTACH 104
+#define TYPE_TERROR 106 /* Illegal */
+#define TYPE_TFLUSH 108
+#define TYPE_TWALK 110
+#define TYPE_TOPEN 112
+#define TYPE_TCREATE 114
+#define TYPE_TREAD 116
+#define TYPE_TWRITE 118
+#define TYPE_TCLUNK 120
+#define TYPE_TREMOVE 122
+#define TYPE_TSTAT 124
+#define TYPE_TWSTAT 126
 
 public class Qid
 {
@@ -32,9 +32,10 @@ public class CPrefixedStr
 };
 
 //The classes represent T-messages.
-//R-messages are written with functions
-//defined below.
-public class CMessage
+//R-messages are written with
+//$LK,"functions defined below",A="HI:9p;R-messages"$
+#help_index "9p;T-messages"
+public class CTmessage
 {
   U32 length;
   U8 bin[0];
@@ -42,38 +43,38 @@ public class CMessage
   U16 tag;
 };
 
-public class CVersion : CMessage
+public class CTversion : CTmessage
 {
   U32 msize;
   CPrefixedStr version;
 };
 
-public class CAuth : CMessage
+public class CTauth : CTmessage
 {
   U32 afid;
   CPrefixedStr names; //two of them here, use NextPrefixedStr
 };
 
-public class CFlush : CMessage
+public class CTflush : CTmessage
 {
   U16 oldtag;
 };
 
-public class CAttach : CMessage
+public class CTattach : CTmessage
 {
   U32 fid;
   U32 afid;
   CPrefixedStr names;
 };
 
-public class CWalk : CMessage
+public class CTwalk : CTmessage
 {
   U32 fid;
   U32 newfid;
   U16 nwname;
 };
 
-public class COpen : CMessage
+public class CTopen : CTmessage
 {
   U32 fid;
   U8 mode;
@@ -81,7 +82,7 @@ public class COpen : CMessage
 
 //Normally 'mode' and 'perm' are after the name,
 //so this message needs to be rearranged 
-public class CCreate : CMessage
+public class CTcreate : CTmessage
 {
   U32 fid;
   U32 perm;
@@ -89,36 +90,36 @@ public class CCreate : CMessage
   CPrefixedStr name;
 };
 
-public class CRead : CMessage
+public class CTread : CTmessage
 {
   U32 fid;
   U64 offset;
   U32 count;
 };
 
-public class CWrite : CMessage
+public class CTwrite : CTmessage
 {
   U32 fid;
   U64 offset;
   U32 count;
 };
 
-public class CClunk : CMessage
+public class CTclunk : CTmessage
 {
   U32 fid;
 };
 
-public class CRemove : CMessage
+public class CTremove : CTmessage
 {
   U32 fid;
 };
 
-public class CStat : CMessage
+public class CTstat : CTmessage
 {
   U32 fid;
 };
 
-public class CWstat : CMessage
+public class CTwstat : CTmessage
 {
   U32 fid;
   CPrefixedStr stat;
@@ -171,14 +172,20 @@ U0 OutRmessage(I64 port=SERIAL0,U8 type,U16 tag,...)
     }
 }
 
+#help_index "9p;R-messages"
 public U0 Rversion(I64 port=SERIAL0,U16 tag,U32 msize,U8 *version)
 {
-  OutRmessage(port,TYPE_VERSION+1,tag,sizeof(msize),msize,-StrLen(version),version);
+  OutRmessage(port,TYPE_TVERSION+1,tag,sizeof(msize),msize,-StrLen(version),version);
 }
 
 public U0 Rattach(I64 port=SERIAL0,U16 tag,Qid qid)
 {
-  OutRmessage(port,TYPE_ATTACH+1,tag,sizeof(qid),&qid);
+  OutRmessage(port,TYPE_TATTACH+1,tag,sizeof(qid),&qid);
+}
+
+public U0 Rerror(I64 port=SERIAL0,U16 tag,U8 *reason)
+{
+  OutRmessage(port,TYPE_TERROR+1,tag,-StrLen(reason),reason);
 }
 
 //Reader functions
@@ -194,9 +201,9 @@ U0 BlockingRepInU8(U8 *buf,I64 cnt,I64 port)
   }
 }
 
-public CMessage *InBlockingMessage(I64 port=SERIAL0)
+public CTmessage *InBlockingTmessage(I64 port=SERIAL0)
 {
-  CMessage *msg;
+  CTmessage *msg;
   U32 len,i;
   
   BlockingRepInU8(&len,sizeof(len),port);
@@ -206,11 +213,11 @@ public CMessage *InBlockingMessage(I64 port=SERIAL0)
 
   BlockingRepInU8(&msg->bin[0],len-sizeof(len),port);
 
-  if (msg->type==TYPE_CREATE) {
-    i=len-sizeof(CCreate.mode);
-    SwapU8(msg(CCreate*)->mode,msg->bin[i-offset(CMessage.bin)]);
-    i-=sizeof(CCreate.perm);
-    SwapU32(msg(CCreate*)->perm,msg->bin[i-offset(CMessage.bin)]);
+  if (msg->type==TYPE_TCREATE) {
+    i=len-sizeof(CTcreate.mode);
+    SwapU8(msg(CTcreate*)->mode,msg->bin[i-offset(CTmessage.bin)]);
+    i-=sizeof(CTcreate.perm);
+    SwapU32(msg(CTcreate*)->perm,msg->bin[i-offset(CTmessage.bin)]);
   }
   
   return msg;

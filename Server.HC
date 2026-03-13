@@ -6,8 +6,8 @@
 #define VERSION "9P2000"
 
 static Qid qid;
-static U16 msize = ~1;
-static CHashTable *fids;
+static U16 msize;
+static CHashTable *fids = NULL;
 
 CHashGeneric *FidHashAdd(U32 fid, U8 *path)
 {
@@ -22,7 +22,7 @@ CHashGeneric *FidHashAdd(U32 fid, U8 *path)
   return word;
 }
 
-U0 OnVersion(CVersion *msg)
+U0 OnTversion(CTversion *msg)
 {
   if (!StrNCmp(VERSION,msg->version.str,msg->version.length)) {
     msize=msg->msize;
@@ -33,7 +33,7 @@ U0 OnVersion(CVersion *msg)
   }
 }
 
-U0 OnAttach(CAttach *msg)
+U0 OnTattach(CTattach *msg)
 {
   I64 i;
   FidHashAdd(msg->fid, "C:/");
@@ -44,19 +44,23 @@ U0 OnAttach(CAttach *msg)
 
 public U0 Start9p()
 {
-  CMessage *msg;
-  fids = HashTableNew(FID_TABLE_SIZE);
+  CTmessage *msg;
+  
+  if (fids == NULL)
+    fids = HashTableNew(FID_TABLE_SIZE);
 		      
   while (TRUE) {
-    msg=InBlockingMessage();
+    msg=InBlockingTmessage();
  
     switch (msg->type) {
-    case TYPE_VERSION:
-      OnVersion(msg); break;
-    case TYPE_ATTACH:
-      OnAttach(msg); break;
+    case TYPE_TVERSION:
+      OnTversion(msg); break;
+    case TYPE_TATTACH:
+      OnTattach(msg); break;
     default:
-      PrintWarn("Unknown packet type %d\n",msg->type); break;
+      PrintWarn("Unknown packet %d\n",msg->type);
+      Rerror(,msg->tag,"unkown packet");
+      break;
     }
     
     Free(msg);
