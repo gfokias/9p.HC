@@ -20,6 +20,11 @@
 #define TYPE_STAT 124
 #define TYPE_WSTAT 126
 
+public class Qid
+{
+  U8 v[13];
+};
+
 public class CPrefixedStr
 {
   U16 length;
@@ -171,6 +176,11 @@ public U0 Rversion(I64 port=SERIAL0,U16 tag,U32 msize,U8 *version)
   OutRmessage(port,TYPE_VERSION+1,tag,sizeof(msize),msize,-StrLen(version),version);
 }
 
+public U0 Rattach(I64 port=SERIAL0,U16 tag,Qid qid)
+{
+  OutRmessage(port,TYPE_ATTACH+1,tag,sizeof(qid),&qid);
+}
+
 //Reader functions
 U0 BlockingRepInU8(U8 *buf,I64 cnt,I64 port)
 {
@@ -208,5 +218,5 @@ public CMessage *InBlockingMessage(I64 port=SERIAL0)
 
 public CPrefixedStr *NextPrefixedStr(CPrefixedStr *str)
 {//TODO
-  return NULL;
+  return (str->length + sizeof(CPrefixedStr.length) + (str(U8*)));
 }
