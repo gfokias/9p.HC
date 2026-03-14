@@ -22,8 +22,9 @@
 
 #define ID "God"
 
-#define QTFILE 0x00000000
-#define QTDIR 0x80000000
+#define QTFILE 0x00
+#define QTDIR 0x80
+#define DMDIR 0x80000000
 
 //Stolen from $LK,"TOSExt.HC",A="FI:::/Demo/AcctExample/TOS/TOSExt.HC"$
 #define NIST_TIME_OFFSET (-8049-local_time_offset/CDATE_FREQ)
@@ -97,6 +98,7 @@ public class CTwalk : CTmessage
   U32 fid;
   U32 newfid;
   U16 nwname;
+  CPrefixedStr names;
 };
 
 public class CTopen : CTmessage
@@ -150,6 +152,16 @@ public class CTwstat : CTmessage
   Cstat stat;
 };
 
+U0 InitQid(CQid *qid, U32 fid, U8 *name)
+{
+  if (IsDir(name))
+    qid->type=QTDIR;
+  else
+    qid->type=QTFILE;
+  qid->vers=0;
+  qid->path=fid;
+}
+
 //Stolen from $LK,"TOSNIST.HC",A="FI:::/Demo/AcctExample/TOS/TOSNIST.HC"$
 I64 CDate2Unix(CDate dt)
 {//TempleOS datetime to Unix timestamp.
@@ -174,7 +186,7 @@ U0 OutRmessage(I64 port=SERIAL0,U8 type,U16 tag,...)
   length=sizeof(length)+sizeof(type)+sizeof(tag);
 
   for (i = 0;i<argc;i+=2) {
-    if (argv[i]<=0)
+    if (argv[i]<0)
       length+=sizeof(U16);
     length+=AbsI64(argv[i]);
   }
@@ -185,6 +197,7 @@ U0 OutRmessage(I64 port=SERIAL0,U8 type,U16 tag,...)
  
   for (i=0;i<argc;i+=2)
     switch (argv[i]) {
+    case 0: break;
     case 1:
       OutU8(port,argv[i+1]); break;
     case 2:
@@ -217,32 +230,51 @@ public U0 Rerror(I64 port=SERIAL0,U16 tag,U8 *reason)
   OutRmessage(port,TYPE_TERROR+1,tag,-StrLen(reason),reason);
 }
 
-public U0 Rstat(I64 port=SERIAL0,U16 tag,U64 id,CDirEntry *entry,U8 *name=NULL)
+public U0 Rstat(I64 port=SERIAL0,U16 tag,U64 fid,CDirEntry *entry,Bool isdir=FALSE)
 {
   Cstat rstat;
   
-  if (name==NULL)
-    name=entry->name;
-  
-  rstat.size=sizeof(rstat)-sizeof(rstat.size)+4*sizeof(U16)+StrLen(name)+3*StrLen(ID);
+  rstat.size=sizeof(rstat)-sizeof(rstat.size)+4*sizeof(U16)+StrLen(entry->name)+3*StrLen(ID);
   rstat.pad=0;//???????????????????????????????????????????????????????
   rstat.type=69;
   rstat.dev=420;
-  if (!entry->full_name||IsDir(entry->full_name)) {
-    rstat.mode=QTDIR;
-    rstat.qid.type=0x8;
-  } else {
-    rstat.mode=QTFILE;
-    rstat.qid.type=0;
-  }
-  rstat.qid.vers=0;
-  rstat.qid.path=id;
+  InitQid(&rstat.qid,fid,&entry->full_name);
+  if (rstat.qid.type==QTDIR)
+    rstat.mode=DMDIR;
+  else
+    rstat.mode=0;
   rstat.atime=rstat.mtime=CDate2Unix(entry->datetime);
   rstat.length=entry->size;
 
-  OutRmessage(port,TYPE_TSTAT+1,tag,sizeof(rstat),&rstat,-StrLen(name),name,
+  OutRmessage(port,TYPE_TSTAT+1,tag,sizeof(rstat),&rstat,-StrLen(entry->name),entry->name,
 	      -StrLen(ID),ID,-StrLen(ID),ID,-StrLen(ID),ID);
 }
+
+public U0 Rwalk(I64 port=SERIAL0,U16 tag,U16 nwqid,I64 *fids)
+{
+  CQid *qids;
+  U16 i;
+
+  qids=MAlloc(nwqid*sizeof(CQid));
+
+  for (i=0;i<nwqid;i++) {
+    qids[i].type=0;
+    qids[i].vers=0;
+    qids[i].path=fids[i];
+  }
+
+  OutRmessage(port,TYPE_TWALK+1,tag,sizeof(nwqid),nwqid,nwqid*sizeof(CQid),qids);
+}
+
+public U0 Rclunk(I64 port=SERIAL0,U16 tag)
+{
+  OutRmessage(port,TYPE_TCLUNK+1,tag);
+}
+
+public U0 Ropen(I64 port=SERIAL0,U16 tag,CQid qid,U32 iounit)
+{
+  OutRmessage(port,TYPE_TOPEN+1,tag,sizeof(CQid),&qid,sizeof(iounit),iounit);
+} 
 
 //Reader functions
 U0 BlockingRepInU8(U8 *buf,I64 cnt,I64 port)
