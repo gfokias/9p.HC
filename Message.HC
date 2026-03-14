@@ -20,15 +20,40 @@
 #define TYPE_TSTAT 124
 #define TYPE_TWSTAT 126
 
-public class Qid
+#define ID "God"
+
+#define QTFILE 0x00000000
+#define QTDIR 0x80000000
+
+//Stolen from $LK,"TOSExt.HC",A="FI:::/Demo/AcctExample/TOS/TOSExt.HC"$
+#define NIST_TIME_OFFSET (-8049-local_time_offset/CDATE_FREQ)
+
+public class CQid
 {
-  U8 v[13];
+  U8 bin[0];
+  U8 type;
+  U32 vers;
+  U64 path;
 };
 
 public class CPrefixedStr
 {
   U16 length;
   U8 str[0];
+};
+
+public class Cstat
+{
+  U16 size;
+  U16 pad;//???????????????????????
+  U16 type;
+  U32 dev;
+  CQid qid;
+  U32 mode;
+  U32 atime;
+  U32 mtime;
+  U64 length;
+  U8 strings[0];
 };
 
 //The classes represent T-messages.
@@ -122,8 +147,14 @@ public class CTstat : CTmessage
 public class CTwstat : CTmessage
 {
   U32 fid;
-  CPrefixedStr stat;
+  Cstat stat;
 };
+
+//Stolen from $LK,"TOSNIST.HC",A="FI:::/Demo/AcctExample/TOS/TOSNIST.HC"$
+I64 CDate2Unix(CDate dt)
+{//TempleOS datetime to Unix timestamp.
+  return ToI64((dt-Str2Date("1/1/1970"))/CDATE_FREQ+NIST_TIME_OFFSET);
+}
 
 //RepOutU8 fails with 'invalid opcode'
 U0 OutU8s(U8 *buf,I64 len,I64 port)
@@ -134,7 +165,7 @@ U0 OutU8s(U8 *buf,I64 len,I64 port)
 }
 
 U0 OutRmessage(I64 port=SERIAL0,U8 type,U16 tag,...)
-{//argv should be length followed by the value. strings should have a length of -StrLen
+{//argv-s should be length followed by the value. strings should have a length of -StrLen
   U32 i,length;
 
   if (argc%2)
@@ -142,8 +173,8 @@ U0 OutRmessage(I64 port=SERIAL0,U8 type,U16 tag,...)
 
   length=sizeof(length)+sizeof(type)+sizeof(tag);
 
-  for (i=0;i<argc;i+=2) {
-    if (argv[i] < 0)
+  for (i = 0;i<argc;i+=2) {
+    if (argv[i]<=0)
       length+=sizeof(U16);
     length+=AbsI64(argv[i]);
   }
@@ -151,22 +182,20 @@ U0 OutRmessage(I64 port=SERIAL0,U8 type,U16 tag,...)
   OutU8s(&length,sizeof(length),port);
   OutU8(port,type);
   OutU8s(&tag,sizeof(tag),port);
-
-  length=sizeof(length)+sizeof(type)+sizeof(tag);
-  
+ 
   for (i=0;i<argc;i+=2)
     switch (argv[i]) {
     case 1:
-      OutU8(port,argv[i+1]);
-      break;
+      OutU8(port,argv[i+1]); break;
     case 2:
     case 4:
     case 8:
-      OutU8s(&argv[i+1],argv[i],port);
-      break;
-    default: //strings should have negative length because they can be 1/2/4/8 bytes long
-      argv[i]=AbsI64(argv[i]);
-      OutU8s(&argv[i],sizeof(U16),port);
+      OutU8s(&argv[i+1],argv[i],port); break;
+    default:
+      if (argv[i]<0) {//strings should have negative length to show that they are prefixed
+	argv[i]*=-1;
+	OutU8s(&argv[i],sizeof(U16),port);
+      }
       OutU8s(argv[i+1],argv[i],port);
       break;
     }
@@ -178,7 +207,7 @@ public U0 Rversion(I64 port=SERIAL0,U16 tag,U32 msize,U8 *version)
   OutRmessage(port,TYPE_TVERSION+1,tag,sizeof(msize),msize,-StrLen(version),version);
 }
 
-public U0 Rattach(I64 port=SERIAL0,U16 tag,Qid qid)
+public U0 Rattach(I64 port=SERIAL0,U16 tag,CQid qid)
 {
   OutRmessage(port,TYPE_TATTACH+1,tag,sizeof(qid),&qid);
 }
@@ -186,6 +215,33 @@ public U0 Rattach(I64 port=SERIAL0,U16 tag,Qid qid)
 public U0 Rerror(I64 port=SERIAL0,U16 tag,U8 *reason)
 {
   OutRmessage(port,TYPE_TERROR+1,tag,-StrLen(reason),reason);
+}
+
+public U0 Rstat(I64 port=SERIAL0,U16 tag,U64 id,CDirEntry *entry,U8 *name=NULL)
+{
+  Cstat rstat;
+  
+  if (name==NULL)
+    name=entry->name;
+  
+  rstat.size=sizeof(rstat)-sizeof(rstat.size)+4*sizeof(U16)+StrLen(name)+3*StrLen(ID);
+  rstat.pad=0;//???????????????????????????????????????????????????????
+  rstat.type=69;
+  rstat.dev=420;
+  if (!entry->full_name||IsDir(entry->full_name)) {
+    rstat.mode=QTDIR;
+    rstat.qid.type=0x8;
+  } else {
+    rstat.mode=QTFILE;
+    rstat.qid.type=0;
+  }
+  rstat.qid.vers=0;
+  rstat.qid.path=id;
+  rstat.atime=rstat.mtime=CDate2Unix(entry->datetime);
+  rstat.length=entry->size;
+
+  OutRmessage(port,TYPE_TSTAT+1,tag,sizeof(rstat),&rstat,-StrLen(name),name,
+	      -StrLen(ID),ID,-StrLen(ID),ID,-StrLen(ID),ID);
 }
 
 //Reader functions
