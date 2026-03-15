@@ -2,6 +2,10 @@
 #include "Message"
 #include "Qid"
 
+#define INVALID_VERSION_ERROR "Invalid version in Tversion"
+#define INVALID_FID_ERROR "Fid is not associated with any file"
+#define OPEN_FAIL_ERROR "Could not open file"
+
 #define VERSION "9P2000"
 
 static U16 msize;
@@ -12,7 +16,7 @@ U0 Tversion(CTversion *msg)
     msize=msg->msize;
     Rversion(msg->tag,msg->msize,VERSION);
   } else {
-    PrintWarn("Invalid version in Tversion\n");
+    PrintWarn(INVAID_VERSION_ERROR"\n");
     Rversion(msg->tag,msg->msize,"unknown");
   }
 }
@@ -36,13 +40,13 @@ U0 Tstat(CTstat *msg)
   file_name=FidFile(msg->fid);
   
   if (!file_name) {
-    Rerror(msg->tag,"Fid is not associated with any file");
+    Rerror(msg->tag,INVALID_FID_ERROR);
     return;
   }
 
   if (StrCmp("C:/",file_name)) {
     if (!FileFind(file_name, &entry)) {
-      Rerror(msg->tag,"Could not open file");
+      Rerror(msg->tag,OPEN_FAIL_ERROR);
       return;
     }
     stat=StatFromDirEntry(msg->fid,&entry);
@@ -68,7 +72,7 @@ U0 Twalk(CTwalk *msg)
   file_name=FidFile(msg->fid);
   
   if (!file_name) {
-    Rerror(msg->tag,"Fid is not associated with any file");
+    Rerror(msg->tag,INVALID_FID_ERROR);
     return;
   }
 
@@ -81,7 +85,7 @@ U0 Twalk(CTwalk *msg)
   }
 
   if (!Cd(file_name)) {
-    Rerror(msg->tag,"Could not CD to directory");
+    Rerror(msg->tag,OPEN_FAIL_ERROR);
     return;
   }
     
@@ -128,7 +132,7 @@ U0 Topen(CTopen *msg)
   file_name=FidFile(msg->fid);
 
   if (!file_name) {
-    Rerror(msg->tag,"Fid not associated with any file");
+    Rerror(msg->tag,INVALID_FID_ERROR);
     return;
   }
 
@@ -139,7 +143,7 @@ U0 Topen(CTopen *msg)
   }
 
   if (!FileFind(file_name, &entry)) {
-    Rerror(msg->tag,"Could not open file");
+    Rerror(msg->tag,OPEN_FAIL_ERROR);
     return;
   }
   
