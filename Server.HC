@@ -1,221 +1,187 @@
-#include "D:/Message.HC"
+#include "Fid"
+#include "Message"
+#include "Qid"
 
-#define FID_NUM 512
-
-#define NOFID (~0(U32))
 #define VERSION "9P2000"
 
-class CFid
-{
-  CFid *next;
-  U32 val;
-  I64 hash;
-  U8 *str;
-};
-
-static CQid qid;
 static U16 msize;
-static CFid *fids;
 
-CFid *FidAdd(U32 val,U8 *str)
-{
-  CFid *fid;
-
-  fid = MAlloc(sizeof(CFid));
-  fid->next=fids;
-  fid->val=val;
-  fid->hash=HashStr(str);
-  fid->str=StrNew(str);
-
-  fids=fid;
-}
-
-U8 *FidToFile(U32 val)
-{
-  CFid *v;
-  for (v=fids;v!=NULL;v=v->next)
-    if (v->val==val)
-      return v->str;
-  return NULL;
-}
-
-I64 FileToFid(U8 *str)
-{
-  CFid *v;
-  I64 hash;
-  hash=HashStr(str);
-  for (v=fids;v!=NULL;v=v->next)
-    if (v->hash==hash)
-      return v->val;
-  return NULL;
-}
-
-Bool FidDelFid(I64 val=-1)
-{
-  CFid *v,*p;
-  for (v=fids;v!=NULL;v=v->next) {
-    if (v->val==val) {
-      p->next=v->next;
-      Free(v->str);
-      Free(v);
-      return TRUE;
-    }
-    p=v;
-  }
-  return FALSE;
-}
-
-CDirEntry *RootDirEntry()
-{
-  static CDirEntry *entry = NULL;
-  if (!entry) {
-    entry=MAlloc(sizeof(CDirEntry));
-    entry->next=entry->parent=entry->sub=entry->full_name=NULL;
-    entry->name[0]='/';
-    entry->name[1]='\0';
-    entry->clus=entry->size=0;
-  }
-  return entry;
-}
-
-U0 OnTversion(CTversion *msg)
+U0 Tversion(CTversion *msg)
 {
   if (!StrNCmp(VERSION,msg->version.str,msg->version.length)) {
     msize=msg->msize;
-    Rversion(,msg->tag,msg->msize,VERSION);
+    Rversion(msg->tag,msg->msize,VERSION);
   } else {
     PrintWarn("Invalid version in Tversion\n");
-    Rversion(,msg->tag,msg->msize,"unknown");
+    Rversion(msg->tag,msg->msize,"unknown");
   }
 }
 
-U0 OnTattach(CTattach *msg)
+//I could check for an afid, not that it matters since there is no authentication
+U0 Tattach(CTattach *msg)
 {
-  I64 i;  
-
-  if (FidToFile(msg->fid)) {
-    Rerror(,msg->tag,"Invalid fid");
-    return;
-  }
-
+  CQid qid;
+  FidsReset;
   FidAdd(msg->fid,"C:/");
-  
-  if (msg->afid!=NOFID)
-    PrintWarn("afid specified in Tattach\n");
-  
-  for (i = 0; i < sizeof(qid); i++)
-    qid.bin[i]=RandU16;
-
-  Rattach(,msg->tag,qid);
+  QidInit(&qid,msg->fid,TRUE);
+  Rattach(msg->tag,qid);
 }
 
-U0 OnTstat(CTstat *msg)
+U0 Tstat(CTstat *msg)
 {
-  CDirEntry *entry;
-  U8 *file;
+  CDirEntry entry;
+  CStat *stat;
+  U8 *file_name;
 
-  file=FidToFile(msg->fid);
+  file_name=FidFile(msg->fid);
   
-  if (!file) {
-    Rerror(,msg->tag,"Invalid fid");
+  if (!file_name) {
+    Rerror(msg->tag,"Fid is not associated with any file");
     return;
   }
 
-  if (!StrCmp("C:/",file))
-    entry=RootDirEntry;
-  else
-    if (!FileFind(file, &entry)) {
-      Rerror(,msg->tag,"Could not open file");
+  if (StrCmp("C:/",file_name)) {
+    if (!FileFind(file_name, &entry)) {
+      Rerror(msg->tag,"Could not open file");
       return;
     }
+    stat=StatFromDirEntry(msg->fid,&entry);
+    Free(entry.full_name);
+  } else {
+    stat=StatNew("/",msg->fid,TRUE,0,0);
+  }
   
-  Rstat(,msg->tag,msg->fid,entry,entry==RootDirEntry);
-  Free(entry);
+  Rstat(msg->tag,stat);
+  Free(stat);
 }
 
-U0 OnTwalk(CTwalk *msg)
+U0 Twalk(CTwalk *msg)
 {
-  CDirEntry *entry,*e;
-  CPrefixedStr *str;
-  U8 *file;
-  I64 *qidfids,i;
+  //CDirEntry *entry,*e;
+  CPrefixedStr *pstr;
+  CQid *qids;
+  U8 *file_name,*str;
+  I64 i;
+  U32 nwqid,fid;
+  Bool is_dir;
 
-  file=FidToFile(msg->fid);
+  file_name=FidFile(msg->fid);
   
-  if (!file) {
-    Rerror(,msg->tag,"Invalid fid");
+  if (!file_name) {
+    Rerror(msg->tag,"Fid is not associated with any file");
     return;
   }
 
   if (msg->nwname==0) {
     if (msg->fid!=msg->newfid) {
-      FidAdd(msg->newfid, file);
-      file=NULL;
+      FidAdd(msg->newfid,file_name);
     }
-  } else {
-    qidfids=MAlloc(sizeof(I64)*msg->nwname);
-    str=&msg->names;
-    
-    for (i=0;i<msg->nwname;i++);
+    Rwalk(msg->tag);
+    return;
   }
 
-  Rwalk(,msg->tag,msg->nwname,qidfids);
+  if (!Cd(file_name)) {
+    Rerror(msg->tag,"Could not CD to directory");
+    return;
+  }
+    
+  nwqid=0;
+  str=&msg->names;
+  
+  qids=MAlloc(sizeof(CQid)*msg->nwname);
+    
+  for (i=0;i<msg->nwname;i++) {
+    str=PrefixedStrToNullTerminated(pstr);
+
+    if (Cd(str)) {
+      is_dir=TRUE;
+    } else if (FileFind(str)) {
+      is_dir=FALSE;
+    } else {
+      Free(str);
+      break;
+    }
+    if (i==msg->nwname-1)//Last element
+      fid=msg->newfid;
+    else
+      fid=FidAddStr(str);
+    QidInit(&qids[nwqid++],fid,is_dir);	
+    Free(str);
+  }
+
+  Rwalk(msg->tag,nwqid,qids);
+  Free(qids);
 }
 
-U0 OnTclunk(CTclunk *msg)
+U0 Tclunk(CTclunk *msg)
 {
-  FidDelFid(msg->fid);
-  Rclunk(,msg->tag);
+  FidDelValue(msg->fid);
+  Rclunk(msg->tag);
 }
 
-U0 OnTopen(CTopen *msg)
+U0 Topen(CTopen *msg)
 {
+  CDirEntry entry;
   CQid qid;
-  U8 *file;
+  U8 *file_name;
 
-  file=FidToFile(msg->fid);
+  file_name=FidFile(msg->fid);
 
-  if (!file) {
-    Rerror(,msg->tag,"Invalid fid");
+  if (!file_name) {
+    Rerror(msg->tag,"Fid not associated with any file");
+    return;
+  }
+
+  if (!StrCmp(file_name,"C:/")) {
+    QidInit(&qid,msg->fid,TRUE);
+    Ropen(msg->tag,qid,0);
+    return;
+  }
+
+  if (!FileFind(file_name, &entry)) {
+    Rerror(msg->tag,"Could not open file");
     return;
   }
   
-  InitQid(&qid,msg->fid,file);
-  Ropen(,msg->tag,qid,0);
+  QidInitFromDirEntry(&qid,msg->fid,&entry);
+  Free(entry.full_name);
+  
+  Ropen(msg->tag,qid,0);
+}
+
+public U0 Tread(CTread *msg)
+{
 }
 
 public U0 Start9p()
 {
   CTmessage *msg;
 
-  if (fids!=NULL)
-    LinkedLstDel(&fids);
-  fids=NULL;
+  FidsReset;
   
   while (TRUE) {
-    msg=InBlockingTmessage;
-
-    "%d\n",msg->type;
-    
+    msg=Tmessage;
+    "%d\n",msg->type;  
     switch (msg->type) {
     case TYPE_TVERSION:
-      OnTversion(msg); break;
+      Tversion(msg); break;
     case TYPE_TATTACH:
-      OnTattach(msg); break;
+      Tattach(msg); break;
     case TYPE_TSTAT:
-      OnTstat(msg); break;
+      Tstat(msg); break;
     case TYPE_TWALK:
-      OnTwalk(msg); break;
+      Twalk(msg); break;
     case TYPE_TCLUNK:
-      OnTclunk(msg); break;
+      Tclunk(msg); break;
     case TYPE_TOPEN:
-      OnTopen(msg); break;
+      Topen(msg); break;
+    case TYPE_TREAD:
+      Tread(msg); break;
     default:
       PrintWarn("Unknown packet %d\n",msg->type);
-      Rerror(,msg->tag,"unkown packet");
+      Rerror(msg->tag,"Unkown packet");
       break;
     }
-    
     Free(msg);
   }
 }
