@@ -32,19 +32,24 @@ I64 CDate2Unix(CDate dt)
   return ToI64((dt-Str2Date("1/1/1970"))/CDATE_FREQ+NIST_TIME_OFFSET);
 }
 
-public CStat *StatNew(U8 *name,U32 fid,Bool is_dir,U64 length,U32 time)
+public U16 StatSize(U8 *name)
 {
-  CStat *stat;
+  return sizeof(CStat)+PrefixedStrSize(name)+3*PrefixedStrSize(GMUID);
+}
+
+public CStat *StatInit(CStat *stat=NULL,U8 *name,U32 fid,Bool is_dir,U64 length,U32 time)
+{
   CPrefixedStr *str;
   I64 i;
-  U16 len;
+  U16 size;
 
-  len=sizeof(CStat)+PrefixedStrSize(name)+3*PrefixedStrSize(GMUID);
-  stat=MAlloc(len);
+  size=StatSize(name);
+  if (stat==NULL)
+    stat=MAlloc(size);
   
   QidInit(&stat->qid,fid,is_dir);
   
-  stat->size=len-sizeof(CStat.size);
+  stat->size=size-sizeof(CStat.size);
   stat->pad=0;//??
   stat->type=STAT_TYPE;
   if (stat->qid.type&QTDIR)
@@ -63,7 +68,7 @@ public CStat *StatNew(U8 *name,U32 fid,Bool is_dir,U64 length,U32 time)
   return stat;
 }
 
-public CStat *StatFromDirEntry(U32 fid,CDirEntry *entry)
+public CStat *StatInitFromDirEntry(CStat *ptr=NULL,U32 fid,CDirEntry *e)
 {
-  return StatNew(entry->name,fid,IsDir(entry->full_name),entry->size,CDate2Unix(entry->datetime));
+  return StatInit(ptr,e->name,fid,IsDir(e->full_name),e->size,CDate2Unix(e->datetime));
 }
