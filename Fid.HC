@@ -57,3 +57,13 @@ public U8 *FidFile(U32 value)
       return &fid->str[0];
   return NULL;
 }
+
+public U32 FidValueOrAdd(U8 *str)
+{//Get fid value from file. If it doesn't exist, create a new fid
+  CFid *fid;
+  I64 hash=HashStr(str);
+  for (fid=fids;fid!=NULL;fid=fid->next)
+    if (fid->hash==hash)
+      return &fid->value;
+  return FidAddStr(str);
+}
