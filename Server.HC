@@ -16,7 +16,7 @@ U0 Tversion(CTversion *msg)
     msize=msg->msize;
     Rversion(msg->tag,msg->msize,VERSION);
   } else {
-    PrintWarn(INVAID_VERSION_ERROR"\n");
+    PrintWarn(INVALID_VERSION_ERROR"\n");
     Rversion(msg->tag,msg->msize,"unknown");
   }
 }
@@ -49,10 +49,10 @@ U0 Tstat(CTstat *msg)
       Rerror(msg->tag,OPEN_FAIL_ERROR);
       return;
     }
-    stat=StatFromDirEntry(msg->fid,&entry);
+    stat=StatInitFromDirEntry(,msg->fid,&entry);
     Free(entry.full_name);
   } else {
-    stat=StatNew("/",msg->fid,TRUE,0,0);
+    stat=StatInit(,"/",msg->fid,TRUE,0,0);
   }
   
   Rstat(msg->tag,stat);
@@ -61,7 +61,6 @@ U0 Tstat(CTstat *msg)
 
 U0 Twalk(CTwalk *msg)
 {
-  //CDirEntry *entry,*e;
   CPrefixedStr *pstr;
   CQid *qids;
   U8 *file_name,*str;
@@ -153,8 +152,56 @@ U0 Topen(CTopen *msg)
   Ropen(msg->tag,qid,0);
 }
 
+public U0 Tread_dir(CTread *msg,U8 *dir_name)
+{//This function does not split data into different packets, even though it probably should.
+//On the other side, ~60 files fit in a ~3kB buffer, so with say, 9pfs, you can send a folder
+//with ~500 files on it without splitting. I will fix this when The Standard Temple IBM PC
+//V2.0 is finally released
+  CStat *stats,*stat;
+  CDirEntry *entries,*entry;
+  I64 size;
+  U32 fid;
+
+  entries=FilesFind(dir_name);
+  entry=entries;
+
+  if (msg->offset!=0) {
+    Rread(msg->tag,0,NULL);
+    return;
+  }
+ 
+  size=0;
+  for (entry=entries;entry!=NULL;entry=entry->next)
+    size+=StatSize(entry->full_name);
+  
+  stats=MAlloc(size);
+  stat=stats;
+  
+  for (entry=entries;entry!=NULL;entry=entry->next) {
+    fid=FidValueOrAdd(entry->full_name);
+    StatInitFromDirEntry(stat,fid,entry);
+    stat=StatSize(entry->full_name)+stat(U8*);
+  }
+
+  Rread(msg->tag,size,stats);
+  LinkedLstDel(entries);
+  Free(stats);
+}
+
 public U0 Tread(CTread *msg)
 {
+  U8 *file_name;
+
+  file_name=FidFile(msg->fid);
+
+  if (!file_name) {
+    Rerror(msg->tag,INVALID_FID_ERROR);
+    return;
+  }
+
+  if (IsDir(file_name))
+    Tread_dir(msg,file_name);
+    //TODO: File Handling
 }
 
 public U0 Start9p()

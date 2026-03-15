@@ -166,9 +166,9 @@ public U0 Ropen(U16 tag,CQid qid,U32 iounit)
   OutMsgFmt(,TYPE_ROPEN,tag,sizeof(CQid),&qid,sizeof(iounit),iounit);
 } 
 
-public U0 Rreaddir(U16 tag,U32 count,CQid *qids)
+public U0 Rread(U16 tag,U32 count,U8 *data)
 {
-  OutMsgFmt(,TYPE_TREAD+1,tag,count*sizeof(CQid),qids);
+  OutMsgFmt(,TYPE_RREAD,tag,sizeof(count),count,count,data);
 }
 
 #help_index "9p;Message In"
