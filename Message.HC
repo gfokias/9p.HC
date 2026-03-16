@@ -84,14 +84,16 @@ public class CTopen : CTmessage
   U8 mode;
 };
 
-//Normally 'mode' and 'perm' are after the name,
-//so this message needs to be rearranged 
+//'mode' and 'perm' are actually after the
+//name, but for easy access to them this
+//message needs to be rearranged.
 public class CTcreate : CTmessage
 {
   U32 fid;
+  U8 body[0];//This is where the rearranging needs to happen
   U32 perm;
   U8 mode;
-  CPrefixedStr name;
+  U8 name[0];//This will be null terminated
 };
 
 public class CTread : CTmessage
@@ -176,11 +178,38 @@ public U0 Rflush(U16 tag)
   OutMsgFmt(,TYPE_RFLUSH,tag);
 }
 
+U0 ReorderTcreate(CTcreate* msg)
+{//Tcreate's format is not very approachable.
+//This function reorders it to be better suited
+//to reading. This function is also not divine
+//intellect, but I digress.
+  CPrefixedStr *name;
+  I64 i;
+  U32 perm;
+  U16 length;
+  U8 mode,*buffer;
+
+  i=msg->length;
+  mode=msg->body[i-=sizeof(CTcreate.perm)];
+  perm=*(&msg->body[i-=sizeof(CTcreate.mode)](U32*));
+
+  name=&msg->body[0];
+  length=name->length;
+
+  buffer=MAlloc(length);
+  MemCpy(buffer,&name->str[0],length);
+  MemCpy(&msg->name[0],buffer,length);
+  Free(buffer);
+
+  msg->perm=perm;
+  msg->mode=mode;
+  msg->name[length]=0;
+}
+
 #help_index "9p;Message In"
 public CTmessage *Tmessage()
 {
   CTmessage *msg;
-  I64 i;
   
   if (InBlockingLengthU8(,&msg)<sizeof(CTmessage)) {
     PrintWarn("Received packet smaller than message headers");
@@ -188,12 +217,8 @@ public CTmessage *Tmessage()
     return NULL;
   }
 
-  if (msg->type==TYPE_TCREATE) {
-    i=msg->length-sizeof(CTcreate.mode);
-    SwapU8(msg(CTcreate*)->mode,msg->bin[i-offset(CTmessage.bin)]);
-    i-=sizeof(CTcreate.perm);
-    SwapU32(msg(CTcreate*)->perm,msg->bin[i-offset(CTmessage.bin)]);
-  }
+  if (msg->type==TYPE_TCREATE)
+    ReorderTcreate(msg);
   
   return msg;
 }
