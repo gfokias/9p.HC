@@ -18,7 +18,7 @@ public U0 FidsReset()
 }
 
 public CFid *FidAdd(U32 value,U8 *str)
-{
+{//str is filename. It MUST be the absolute filename.
   CFid *fid;
   fid=MAlloc(sizeof(CFid)+StrLen(str)+1);
   fid->next=fids;
