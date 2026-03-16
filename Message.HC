@@ -148,7 +148,7 @@ public U0 Rerror(U16 tag,U8 *reason)
 
 public U0 Rstat(U16 tag,CStat *stat)
 {
-  OutMsgFmt(,TYPE_RSTAT,tag,stat->size+sizeof(CStat.size),stat);
+  OutMsgFmt(,TYPE_RSTAT,tag,-(stat->size+sizeof(CStat.size)),stat);
 }
 
 public U0 Rwalk(U16 tag,U16 nwqid=0,CQid *qids=NULL)

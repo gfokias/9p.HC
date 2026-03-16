@@ -166,13 +166,13 @@ public U0 Tread_dir(CTread *msg,U8 *dir_name)
   entry=entries;
 
   if (msg->offset!=0) {
-    Rread(msg->tag,0,NULL);
+    Rread(msg->tag,0,0);
     return;
   }
  
   size=0;
   for (entry=entries;entry!=NULL;entry=entry->next)
-    size+=StatSize(entry->full_name);
+    size+=StatSize(entry->name);
   
   stats=MAlloc(size);
   stat=stats;
@@ -180,9 +180,9 @@ public U0 Tread_dir(CTread *msg,U8 *dir_name)
   for (entry=entries;entry!=NULL;entry=entry->next) {
     fid=FidValueOrAdd(entry->full_name);
     StatInitFromDirEntry(stat,fid,entry);
-    stat=StatSize(entry->full_name)+stat(U8*);
+    stat=StatSize(entry->name)+stat(U8*);
   }
-
+  
   Rread(msg->tag,size,stats);
   LinkedLstDel(entries);
   Free(stats);

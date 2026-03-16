@@ -15,7 +15,6 @@
 public class CStat
 {
   U16 size;
-  U16 pad;//???????????????????????
   U16 type;
   U32 dev;
   CQid qid;
@@ -50,7 +49,6 @@ public CStat *StatInit(CStat *stat=NULL,U8 *name,U32 fid,Bool is_dir,U64 length,
   QidInit(&stat->qid,fid,is_dir);
   
   stat->size=size-sizeof(CStat.size);
-  stat->pad=0;//??
   stat->type=STAT_TYPE;
   if (stat->qid.type&QTDIR)
     stat->mode=DMDIR;
