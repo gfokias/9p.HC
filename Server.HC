@@ -156,7 +156,7 @@ U0 Topen(CTopen *msg)
   Ropen(msg->tag,qid,0);
 }
 
-public U0 Tread_dir(CTread *msg,U8 *dir_name)
+U0 Tread_dir(CTread *msg,U8 *dir_name)
 {//This function does not split data into different packets, even though it probably should.
 //On the other side, ~60 files fit in a ~3kB buffer, so with say, 9pfs, you can send a folder
 //with ~500 files on it without splitting. I will fix this when The Standard Temple IBM PC
@@ -196,7 +196,7 @@ public U0 Tread_dir(CTread *msg,U8 *dir_name)
   Free(stats);
 }
 
-public U0 Tread_file(CTread *msg,U8 *file_name)
+U0 Tread_file(CTread *msg,U8 *file_name)
 {//Working under the assumption that the client will request one file at a time
   static U8 *last_raw=NULL;
   static U32 last_fid;
@@ -218,7 +218,7 @@ public U0 Tread_file(CTread *msg,U8 *file_name)
   Rread(msg->tag,count,last_raw+msg->offset);
 }
 
-public U0 Tread(CTread *msg)
+U0 Tread(CTread *msg)
 {
   U8 *file_name;
   
