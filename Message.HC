@@ -178,6 +178,11 @@ public U0 Rflush(U16 tag)
   OutMsgFmt(,TYPE_RFLUSH,tag);
 }
 
+public U0 Rcreate(U16 tag,CQid qid,U32 iounit)
+{//This is literally just Ropen again
+  OutMsgFmt(,TYPE_RCREATE,tag,sizeof(CQid),&qid,sizeof(iounit),iounit);
+} 
+
 U0 ReorderTcreate(CTcreate* msg)
 {//Tcreate's format is not very approachable.
 //This function reorders it to be better suited

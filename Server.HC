@@ -242,6 +242,32 @@ U0 Tflush(CTflush *msg)
   Rflush(msg->tag);
 }
 
+U0 Tcreate(CTcreate *msg)
+{
+  CQid qid;
+  U32 fid;
+  U8 *full_name;
+  Bool is_dir;
+
+  "%d %d\n", msg->perm, msg->perm&DMDIR;
+  
+  if (msg->perm&DMDIR)
+    if (DirMk(msg->name)) {
+      is_dir=TRUE;
+    } else {
+      Rerror(msg->tag,OPEN_FAIL_ERROR);
+      return;
+    }
+  else
+    FileWrite(msg->name,NULL,0);
+
+  full_name=FileNameAbs(msg->name);
+  fid=FidUniqueFile(msg->fid,full_name)->value;
+
+  QidInit(&qid,fid,is_dir);
+  Rcreate(msg->tag,qid,0);
+}
+
 public U0 Start9p()
 {
   CTmessage *msg;
@@ -268,6 +294,8 @@ public U0 Start9p()
       Tread(msg); break;
     case TYPE_TFLUSH:
       Tflush(msg); break;
+    case TYPE_TCREATE:
+      Tcreate(msg); break;
     default:
       PrintWarn("Unknown packet %d\n",msg->type);
       Rerror(msg->tag,"Unkown packet");
