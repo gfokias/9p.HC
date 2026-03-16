@@ -5,6 +5,7 @@
 #define INVALID_VERSION_ERROR "Invalid version in Tversion"
 #define INVALID_FID_ERROR "Fid is not associated with any file"
 #define OPEN_FAIL_ERROR "Could not open file"
+#define INVALID_FILE_ERROR "File does not exist"
 
 #define VERSION "9P2000"
 
@@ -189,6 +190,28 @@ public U0 Tread_dir(CTread *msg,U8 *dir_name)
   Free(stats);
 }
 
+public U0 Tread_file(CTread *msg,U8 *file_name)
+{//Working under the assumption that the client will request one file at a time
+  static U8 *last_raw=NULL;
+  static U32 last_fid;
+  static I64 last_size;
+  U32 count;
+  
+  if (!last_raw||last_fid!=msg->fid) {
+    if (last_raw)
+      Free(last_raw);
+    last_raw=FileRead(file_name,&last_size);
+    last_fid=msg->fid;
+  }
+
+  if (last_size<=msg->offset)
+    count=0;
+  else
+    count=Min(msg->count,last_size-msg->offset);
+
+  Rread(msg->tag,count,last_raw+msg->offset);
+}
+
 public U0 Tread(CTread *msg)
 {
   U8 *file_name;
@@ -202,7 +225,10 @@ public U0 Tread(CTread *msg)
 
   if (IsDir(file_name))
     Tread_dir(msg,file_name);
-    //TODO: File Handling
+  else if (FileFind(file_name))
+    Tread_file(msg,file_name);
+  else
+    Rerror(msg->tag,INVALID_FILE_ERROR);
 }
 
 public U0 Start9p()
