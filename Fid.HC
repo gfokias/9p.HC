@@ -69,5 +69,17 @@ public U32 FidValueOrAdd(U8 *str)
   for (fid=fids;fid!=NULL;fid=fid->next)
     if (fid->hash==hash)
       return fid->value;
-  return FidAddStr(str);
+  return FidAdd(RandU32,str)->value;
+}
+
+public CFid *FidUniqueFile(U32 new_value,U8 *str)
+{//Craete Fid of str, or replace its value with new_value if it already exists 
+  CFid *fid;
+  I64 hash=HashStr(str);
+  for (fid=fids;fid!=NULL;fid=fid->next)
+    if (fid->hash==hash) {
+      fid->value=new_value;
+      return fid;
+    }
+  return FidAdd(new_value,str);
 }
