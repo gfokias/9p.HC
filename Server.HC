@@ -46,7 +46,7 @@ U0 Tstat(CTstat *msg)
   }
 
   if (StrCmp("C:/",file_name)) {
-    if (!FileFind(file_name, &entry)) {
+    if (!FileFind(file_name,&entry)) {
       Rerror(msg->tag,OPEN_FAIL_ERROR);
       return;
     }
@@ -93,15 +93,17 @@ U0 Twalk(CTwalk *msg)
   pstr=&msg->names;
   
   qids=MAlloc(sizeof(CQid)*msg->nwname);
-  
+
   for (i=0;i<msg->nwname;i++) {
     str=PrefixedStrToNullTerminated(pstr);
     pstr=PrefixedStrNext(pstr);
     
-    if (FileFind(str)) {
+    if (FileFind(str,,FUF_JUST_FILES)) {
       is_dir=FALSE;
     } else if (Cd(str)) {
       is_dir=TRUE;
+      Free(str);
+      str=DirCur;
     } else {
       Free(str);
       break;
@@ -113,7 +115,7 @@ U0 Twalk(CTwalk *msg)
     QidInit(&qids[nwqid++],fid,is_dir);	
     Free(str);
   }
-
+  
   Rwalk(msg->tag,nwqid,qids);
   Free(qids);
 }
@@ -131,7 +133,7 @@ U0 Topen(CTopen *msg)
   U8 *file_name;
 
   file_name=FidFile(msg->fid);
-  
+
   if (!file_name) {
     Rerror(msg->tag,INVALID_FID_ERROR);
     return;
@@ -143,7 +145,7 @@ U0 Topen(CTopen *msg)
     return;
   }
 
-  if (!FileFind(file_name, &entry)) {
+  if (!FileFind(file_name,&entry)) {
     Rerror(msg->tag,OPEN_FAIL_ERROR);
     return;
   }
@@ -167,11 +169,14 @@ public U0 Tread_dir(CTread *msg,U8 *dir_name)
   entries=FilesFind(dir_name);
   entry=entries;
 
+  if (entries==NULL)
+    throw('NullEntr');
+  
   if (msg->offset!=0) {
     Rread(msg->tag,0,0);
     return;
   }
- 
+
   size=0;
   for (entry=entries;entry!=NULL;entry=entry->next)
     size+=StatSize(entry->name);
@@ -179,14 +184,15 @@ public U0 Tread_dir(CTread *msg,U8 *dir_name)
   stats=MAlloc(size);
   stat=stats;
   
-  for (entry=entries;entry!=NULL;entry=entry->next) {
+  for (entry=entries;entry!=NULL;entry=entry->next) { 
     fid=FidValueOrAdd(entry->full_name);
     StatInitFromDirEntry(stat,fid,entry);
     stat=StatSize(entry->name)+stat(U8*);
   }
+
+  DirTreeDel(entries);
   
   Rread(msg->tag,size,stats);
-  LinkedLstDel(entries);
   Free(stats);
 }
 
@@ -215,9 +221,9 @@ public U0 Tread_file(CTread *msg,U8 *file_name)
 public U0 Tread(CTread *msg)
 {
   U8 *file_name;
-
-  file_name=FidFile(msg->fid);
   
+  file_name=FidFile(msg->fid);
+ 
   if (!file_name) {
     Rerror(msg->tag,INVALID_FID_ERROR);
     return;
