@@ -69,7 +69,7 @@ U0 Twalk(CTwalk *msg)
   Bool is_dir;
 
   file_name=FidFile(msg->fid);
-  
+
   if (!file_name) {
     Rerror(msg->tag,INVALID_FID_ERROR);
     return;
@@ -89,23 +89,24 @@ U0 Twalk(CTwalk *msg)
   }
     
   nwqid=0;
-  str=&msg->names;
+  pstr=&msg->names;
   
   qids=MAlloc(sizeof(CQid)*msg->nwname);
-    
+  
   for (i=0;i<msg->nwname;i++) {
     str=PrefixedStrToNullTerminated(pstr);
-
-    if (Cd(str)) {
-      is_dir=TRUE;
-    } else if (FileFind(str)) {
+    pstr=PrefixedStrNext(pstr);
+    
+    if (FileFind(str)) {
       is_dir=FALSE;
+    } else if (Cd(str)) {
+      is_dir=TRUE;
     } else {
       Free(str);
       break;
     }
     if (i==msg->nwname-1)//Last element
-      fid=msg->newfid;
+      fid=FidAdd(msg->newfid,str)->value;
     else
       fid=FidAddStr(str);
     QidInit(&qids[nwqid++],fid,is_dir);	
@@ -129,7 +130,7 @@ U0 Topen(CTopen *msg)
   U8 *file_name;
 
   file_name=FidFile(msg->fid);
-
+  
   if (!file_name) {
     Rerror(msg->tag,INVALID_FID_ERROR);
     return;
@@ -193,7 +194,7 @@ public U0 Tread(CTread *msg)
   U8 *file_name;
 
   file_name=FidFile(msg->fid);
-
+  
   if (!file_name) {
     Rerror(msg->tag,INVALID_FID_ERROR);
     return;
