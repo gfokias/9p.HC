@@ -237,6 +237,11 @@ U0 Tread(CTread *msg)
     Rerror(msg->tag,INVALID_FILE_ERROR);
 }
 
+U0 Tflush(CTflush *msg)
+{//Nothing has to be flushed. 
+  Rflush(msg->tag);
+}
+
 public U0 Start9p()
 {
   CTmessage *msg;
@@ -261,6 +266,8 @@ public U0 Start9p()
       Topen(msg); break;
     case TYPE_TREAD:
       Tread(msg); break;
+    case TYPE_TFLUSH:
+      Tflush(msg); break;
     default:
       PrintWarn("Unknown packet %d\n",msg->type);
       Rerror(msg->tag,"Unkown packet");

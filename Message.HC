@@ -171,6 +171,11 @@ public U0 Rread(U16 tag,U32 count,U8 *data)
   OutMsgFmt(,TYPE_RREAD,tag,sizeof(count),count,count,data);
 }
 
+public U0 Rflush(U16 tag)
+{
+  OutMsgFmt(,TYPE_RFLUSH,tag);
+}
+
 #help_index "9p;Message In"
 public CTmessage *Tmessage()
 {
