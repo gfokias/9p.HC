@@ -20,7 +20,7 @@ public U0 FidsReset()
 public CFid *FidAdd(U32 value,U8 *str)
 {
   CFid *fid;
-  fid=MAlloc(sizeof(CFid)+StrLen(str));
+  fid=MAlloc(sizeof(CFid)+StrLen(str)+1);
   fid->next=fids;
   fid->value=value;
   fid->hash=HashStr(str);
@@ -40,7 +40,10 @@ public Bool FidDelValue(U32 value)
   prev=NULL;
   for (fid=fids;fid!=NULL;fid=fid->next) {
     if (fid->value==value) {
-      prev->next=fid->next;
+      if (fid==fids)
+	fids=fid->next;
+      else
+	prev->next=fid->next;
       Free(fid);
       return TRUE;
     }
