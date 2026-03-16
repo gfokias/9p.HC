@@ -8,7 +8,7 @@ class CFid
   U8 str[0];
 };
 
-static CFid *fids=NULL;
+CFid *fids=NULL;
 
 public U0 FidsReset()
 {
@@ -52,9 +52,10 @@ public Bool FidDelValue(U32 value)
 public U8 *FidFile(U32 value)
 {//Get fid file from value. Don't Free
   CFid *fid;
-  for (fid=fids;fid!=NULL;fid=fid->next)
+  for (fid=fids;fid!=NULL;fid=fid->next) {
     if (fid->value==value)
       return &fid->str[0];
+  }
   return NULL;
 }
 
@@ -64,6 +65,6 @@ public U32 FidValueOrAdd(U8 *str)
   I64 hash=HashStr(str);
   for (fid=fids;fid!=NULL;fid=fid->next)
     if (fid->hash==hash)
-      return &fid->value;
+      return fid->value;
   return FidAddStr(str);
 }
