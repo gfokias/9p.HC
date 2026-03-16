@@ -14,9 +14,14 @@ public CPrefixedStr *PrefixedStrNext(CPrefixedStr *ptr)
   return ptr->length+sizeof(CPrefixedStr.length)+ptr(U8*);
 }
 
+public I64 PrefixedStrSizeU16(U16 length)
+{
+  return sizeof(CPrefixedStr.length)+length;
+}
+
 public I64 PrefixedStrSize(U8 *str)
 {
-  return sizeof(CPrefixedStr.length)+StrLen(str);
+  return PrefixedStrSizeU16(StrLen(str));
 }
 
 public CPrefixedStr *PrefixedStrSetStep(CPrefixedStr *ptr,U8 *str)
