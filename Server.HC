@@ -109,9 +109,9 @@ U0 Twalk(CTwalk *msg)
       break;
     }
     if (i==msg->nwname-1)//Last element
-      fid=FidAdd(msg->newfid,str)->value;
+      fid=FidUniqueFile(msg->newfid,str)->value;
     else
-      fid=FidAddStr(str);
+      fid=FidValueOrAdd(str);
     QidInit(&qids[nwqid++],fid,is_dir);	
     Free(str);
   }
