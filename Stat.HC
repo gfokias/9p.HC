@@ -1,7 +1,9 @@
 #include "PrefixedStr"
 #include "Qid"
 
-#define GMUID "God" //guid,uid,muid
+#define GMUID "God"//guid,uid,muid
+#define DMR 0x124//from bits:100100100
+#define DMW 0x92//from bits:010010010
 #define DMDIR 0x80000000
 #define DMFILE 0x00000000
 
@@ -51,9 +53,9 @@ public CStat *StatInit(CStat *stat=NULL,U8 *name,U32 fid,Bool is_dir,U64 length,
   stat->size=size-sizeof(CStat.size);
   stat->type=STAT_TYPE;
   if (stat->qid.type&QTDIR)
-    stat->mode=DMDIR;
+    stat->mode=DMR|DMDIR;
   else
-    stat->mode=DMFILE;
+    stat->mode=DMR|DMW|DMFILE;
   stat->atime=time;
   stat->mtime=time;
   stat->length=length;
