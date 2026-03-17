@@ -6,6 +6,8 @@
 #define INVALID_FID_ERROR "Fid is not associated with any file"
 #define OPEN_FAIL_ERROR "Could not open file"
 #define INVALID_FILE_ERROR "File does not exist"
+#define FOLDER_CONTENTS_ERROR "Folder is not empty"
+#define DEL_FAIL_ERROR "Could not delete file/folder"
 
 #define VERSION "9P2000"
 
@@ -358,6 +360,39 @@ U0 Twstat(CTwstat *msg)
   Rwstat(msg->tag);
 }
 
+U0 Tremove(CTremove *msg)
+{
+  U8 *file_name=FidFile(msg->fid);
+  //"The remove request asks the file server both to remove the
+  //file represented by fid and to clunk the fid, even if the
+  //remove fails"
+  FidDelValue(msg->fid);
+
+  if (!file_name) {
+    Rerror(msg->tag,INVALID_FID_ERROR);
+    return;
+  }
+
+  if (!FileFind(file_name)) {
+    Rerror(msg->tag,INVALID_FILE_ERROR);
+    return;
+  }
+
+  if (IsDir(file_name)&&(Dir(file_name)>2)) {//'.' and '..'
+    Rerror(msg->tag,FOLDER_CONTENTS_ERROR);
+    return;
+  }
+
+  Del(file_name,,TRUE);//Del on a folder does not return 1. Not divine God, not divine.
+  
+  if (FileFind(file_name)) {
+    Rerror(msg->tag,DEL_FAIL_ERROR);
+    return;
+  }
+
+  Rremove(msg->tag);
+}
+
 #help_index "9p;Server"
 public U0 Start9p()
 {
@@ -389,6 +424,8 @@ public U0 Start9p()
       Tcreate(msg); break;
     case TYPE_TWSTAT:
       Twstat(msg); break;
+    case TYPE_TREMOVE:
+      Tremove(msg); break;
     default:
       PrintWarn("Unknown packet %d\n",msg->type);
       Rerror(msg->tag,"Unkown packet");

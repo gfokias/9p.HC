@@ -189,6 +189,11 @@ public U0 Rwstat(U16 tag)
   OutMsgFmt(,TYPE_RWSTAT,tag);
 }
 
+public U0 Rremove(U16 tag)
+{
+  OutMsgFmt(,TYPE_RREMOVE,tag);
+}
+
 U0 ReorderTcreate(CTcreate* msg)
 {//Tcreate's format is not very approachable.
 //This function reorders it to be better suited
