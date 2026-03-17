@@ -11,6 +11,48 @@
 
 static U16 msize;
 
+U8 *DirName(U8 *file_name)
+{//Get directory name from file name.
+  I64 i;
+  U8 *name;
+
+  name=StrNew(file_name);
+
+  for (i=0;name[i]!='\0';i++)
+    if (name[i]=='/') {
+      name[i+1]='\0';
+      return name;
+    }
+
+  throw('RltvName');
+}
+
+Bool PathEndsWith(U8 *str, U8 *suffix)
+{//Check if path ends with suffix.
+  I64 i,sfx_len,str_len;
+
+  str_len=StrLen(str);
+  sfx_len=StrLen(suffix);
+
+  if (str_len<sfx_len)
+    return FALSE;
+  
+  str+=str_len-1;
+  suffix+=sfx_len-1;
+  
+  for (i=0;i<sfx_len;i++)
+    if (*(str--)!=*(suffix--))
+      return FALSE;
+  
+  return *str=='/';
+}
+
+//Stolen from $LK,"TOSNIST.HC",A="FI:::/Demo/AcctExample/TOS/TOSNIST.HC"$
+CDate Unix2CDate(I64 timestamp)
+{//Unix timestamp to TempleOS datetime.
+  return (timestamp-NIST_TIME_OFFSET)*CDATE_FREQ+Str2Date("1/1/1970");
+}
+
 U0 Tversion(CTversion *msg)
 {
   if (!StrNCmp(VERSION,msg->version.str,msg->version.length)) {
@@ -64,7 +106,7 @@ U0 Twalk(CTwalk *msg)
 {
   CPrefixedStr *pstr;
   CQid *qids;
-  U8 *file_name,*str;
+  U8 *file_name,*str,*buf;
   I64 i;
   U32 nwqid,fid;
   Bool is_dir;
@@ -100,6 +142,9 @@ U0 Twalk(CTwalk *msg)
     
     if (FileFind(str,,FUF_JUST_FILES)) {
       is_dir=FALSE;
+      buf=FileNameAbs(str);
+      Free(str);
+      str=buf;
     } else if (Cd(str)) {
       is_dir=TRUE;
       Free(str);
@@ -268,6 +313,50 @@ U0 Tcreate(CTcreate *msg)
   Rcreate(msg->tag,qid,0);
 }
 
+U0 Twstat(CTwstat *msg)
+{
+  U8 *file_name,*dir_name,*rel_name,*abs_name;
+
+  file_name=FidFile(msg->fid);
+
+  if (!file_name) {
+    Rerror(msg->tag,INVALID_FID_ERROR);
+    return;
+  }
+
+  Touch(file_name,,,Unix2CDate(msg->stat.mtime));
+  rel_name=PrefixedStrToNullTerminated(&msg->stat.strings[0]);
+
+  if (!PathEndsWith(file_name,rel_name)) {//Rename
+    abs_name=FileNameAbs(rel_name);
+    
+    //Not sure if this is will cause problems, hopefully not
+    dir_name=DirName(file_name);
+    Cd(dir_name);
+    Free(dir_name);
+
+     if (FileFind(file_name,,FUF_JUST_FILES)) {
+       Move(file_name,abs_name);
+     } else if (IsDir(file_name)) {
+       if (CopyTree(file_name,abs_name))
+	 DelTree(file_name);
+       else
+	 PrintWarn("Could not copy directory?");
+     } else {
+       Rerror(msg->tag,INVALID_FILE_ERROR);
+       Free(rel_name);
+       Free(abs_name);
+       return;
+     }
+
+     Free(abs_name);
+  }
+
+  Free(rel_name);
+  
+  Rwstat(msg->tag);
+}
+
 public U0 Start9p()
 {
   CTmessage *msg;
@@ -296,6 +385,8 @@ public U0 Start9p()
       Tflush(msg); break;
     case TYPE_TCREATE:
       Tcreate(msg); break;
+    case TYPE_TWSTAT:
+      Twstat(msg); break;
     default:
       PrintWarn("Unknown packet %d\n",msg->type);
       Rerror(msg->tag,"Unkown packet");
