@@ -128,6 +128,7 @@ public class CTstat : CTmessage
 public class CTwstat : CTmessage
 {
   U32 fid;
+  U16 stat_length;
   CStat stat;
 };
 
@@ -182,6 +183,11 @@ public U0 Rcreate(U16 tag,CQid qid,U32 iounit)
 {//This is literally just Ropen again
   OutMsgFmt(,TYPE_RCREATE,tag,sizeof(CQid),&qid,sizeof(iounit),iounit);
 } 
+
+public U0 Rwstat(U16 tag)
+{
+  OutMsgFmt(,TYPE_RWSTAT,tag);
+}
 
 U0 ReorderTcreate(CTcreate* msg)
 {//Tcreate's format is not very approachable.
