@@ -64,6 +64,7 @@ U0 Tversion(CTversion *msg)
   }
 }
 
+#help_index "9p;Server Handlers"
 //I could check for an afid, not that it matters since there is no authentication
 U0 Tattach(CTattach *msg)
 {
@@ -357,6 +358,7 @@ U0 Twstat(CTwstat *msg)
   Rwstat(msg->tag);
 }
 
+#help_index "9p;Server"
 public U0 Start9p()
 {
   CTmessage *msg;
