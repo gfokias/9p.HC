@@ -483,4 +483,5 @@ public U0 Start9p()
   }
 }
 
+IOInit;
 Start9p;

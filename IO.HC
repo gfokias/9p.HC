@@ -1,15 +1,33 @@
 #define SERIAL0 0x3F8
 
-#define IO_SLEEP_INTERVAL 1
+#define IO_SLEEP 1
 
+#define UART_IER 0x1
+#define UART_FCR 0x2
+#define UART_LCR 0x3
 #define UART_LSR 0x5
+
+#define FCR_DEFAULT 1 >> 0 + 1 >> 1 + 1 >> 2 //clear fifos, trigger level = 1 byte
+
+#define LCR_DEFAULT 0
+#define LCR_DLAB 1 >> 6
+
 #define LSR_DATA 1 >> 0
 
-U0 OutU8s(U8 *buf,I64 len,I64 port)
+public U0 IOInit(I64 port=SERIAL0)
+{
+  OutU8(port+UART_LCR,LCR_DLAB);
+  OutU8(port,0x1);//110000 baud rate
+  OutU8(port+UART_IER,0x0);
+  OutU8(port+UART_FCR,FCR_DEFAULT);
+  OutU8(port+UART_LCR,LCR_DEFAULT);
+}
+
+public U0 OutU8s(U8 *buf,I64 len,I64 port)
 {//RepOutU8 fails with 'invalid opcode'
   I64 i;
   for (i=0;i<len;i++)
-    OutU8(port, *(buf++));
+    OutU8(port,*(buf++));
 }
 
 #help_index "9p;Message Out"
@@ -58,8 +76,7 @@ U0 InBlockingRepU8(U8 *buf,I64 cnt,I64 port)
   I64 i;
   for (i=0;i<cnt;i++) {
     while (!(InU8(port+UART_LSR)&LSR_DATA)) {
-      Sleep(IO_SLEEP_INTERVAL);
-      Yield;
+      Sleep(IO_SLEEP);
     }
     buf[i]=InU8(port);
   }
