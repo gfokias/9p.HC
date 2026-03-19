@@ -365,22 +365,26 @@ U0 Twstat(CTwstat *msg)
 U0 Tremove(CTremove *msg)
 {
   U8 *file_name=FidFile(msg->fid);
-  //"The remove request asks the file server both to remove the
-  //file represented by fid and to clunk the fid, even if the
-  //remove fails"
-  FidDelValue(msg->fid);
 
   if (!file_name) {
     Rerror(msg->tag,INVALID_FID_ERROR);
     return;
   }
 
+  file_name=StrNew(file_name);
+  //"The remove request asks the file server both to remove the
+  //file represented by fid and to clunk the fid, even if the
+  //remove fails"
+  FidDelValue(msg->fid);
+
   if (!FileFind(file_name)) {
+    Free(file_name);
     Rerror(msg->tag,INVALID_FILE_ERROR);
     return;
   }
 
   if (IsDir(file_name)&&(Dir(file_name)>2)) {//'.' and '..'
+    Free(file_name);
     Rerror(msg->tag,FOLDER_CONTENTS_ERROR);
     return;
   }
@@ -392,6 +396,7 @@ U0 Tremove(CTremove *msg)
     return;
   }
 
+  Free(file_name);
   Rremove(msg->tag);
 }
 
