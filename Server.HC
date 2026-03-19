@@ -298,8 +298,6 @@ U0 Tcreate(CTcreate *msg)
   U32 fid;
   U8 *full_name;
   Bool is_dir;
-
-  "%d %d\n", msg->perm, msg->perm&DMDIR;
   
   if (msg->perm&DMDIR)
     if (DirMk(msg->name)) {

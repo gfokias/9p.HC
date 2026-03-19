@@ -206,17 +206,16 @@ U0 ReorderTcreate(CTcreate* msg)
 //to reading. This function is also not divine
 //intellect, but I digress.
   CPrefixedStr *name;
-  I64 i;
-  U32 perm;
+  U32 perm,mode;
   U16 length;
-  U8 mode,*buffer;
-
-  i=msg->length;
-  mode=msg->body[i-=sizeof(CTcreate.perm)];
-  perm=*(&msg->body[i-=sizeof(CTcreate.mode)](U32*));
+  U8 *buffer,*data;
 
   name=&msg->body[0];
   length=name->length;
+
+  data=PrefixedStrNext(name);
+  perm=*(data(U32*)++);
+  mode=*(data(U8*));
 
   buffer=MAlloc(length);
   MemCpy(buffer,&name->str[0],length);
