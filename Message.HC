@@ -108,6 +108,7 @@ public class CTwrite : CTmessage
   U32 fid;
   U64 offset;
   U32 count;
+  U8 data[0];
 };
 
 public class CTclunk : CTmessage
@@ -192,6 +193,11 @@ public U0 Rwstat(U16 tag)
 public U0 Rremove(U16 tag)
 {
   OutMsgFmt(,TYPE_RREMOVE,tag);
+}
+
+public U0 Rwrite(U16 tag, U32 count)
+{
+  OutMsgFmt(,TYPE_RWRITE,tag,sizeof(count),count);
 }
 
 U0 ReorderTcreate(CTcreate* msg)

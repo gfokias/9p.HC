@@ -393,6 +393,50 @@ U0 Tremove(CTremove *msg)
   Rremove(msg->tag);
 }
 
+U0 Twrite(CTwrite *msg)
+{
+  static U8 *file_raw=NULL;
+  static U32 file_fid;
+  CDirEntry entry;
+  I64 size;
+  U8 *file_name,*buffer;
+
+  file_name=FidFile(msg->fid);
+  "fid:%d\nfile_name:%s\n",msg->fid,file_name;
+
+  if (!file_name) {
+    Rerror(msg->tag,INVALID_FID_ERROR);
+    return;
+  }
+
+  if (!FileFind(file_name,&entry,FUF_JUST_FILES)) {
+    Rerror(msg->tag,INVALID_FILE_ERROR);
+    return;
+  }
+  Free(entry.full_name);
+
+  size=Max(msg->offset+msg->count,entry.size);
+
+  if (!file_raw||msg->fid!=file_fid) {
+    if (file_raw)
+      Free(file_raw);
+    file_raw=FileRead(file_name);
+    file_fid=msg->fid;
+  }
+  
+  if (size>entry.size) {
+    buffer=MAlloc(size);
+    MemCpy(buffer,file_raw,entry.size);
+    Free(file_raw);//file_raw will always be non-null due to the initialization above 
+    file_raw=buffer;
+  }
+
+  MemCpy(file_raw+msg->offset,msg->data,msg->count);
+  FileWrite(file_name,file_raw,size);
+  
+  Rwrite(msg->tag,msg->count);
+}
+
 #help_index "9p;Server"
 public U0 Start9p()
 {
@@ -426,6 +470,8 @@ public U0 Start9p()
       Twstat(msg); break;
     case TYPE_TREMOVE:
       Tremove(msg); break;
+    case TYPE_TWRITE:
+      Twrite(msg); break;
     default:
       PrintWarn("Unknown packet %d\n",msg->type);
       Rerror(msg->tag,"Unkown packet");
