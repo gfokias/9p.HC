@@ -157,7 +157,9 @@ U0 Twalk(CTwalk *msg)
       break;
     }
     if (i==msg->nwname-1)//Last element
-      fid=FidUniqueFile(msg->newfid,str)->value;
+      //"newfid WILL represent the file", but some clients use a previous fid for the file too
+      //The spec does not specify what happens to that, so I guess it must be valid as well.
+      fid=FidAdd(msg->newfid,str)->value;
     else
       fid=FidValueOrAdd(str);
     QidInit(&qids[nwqid++],fid,is_dir);	
